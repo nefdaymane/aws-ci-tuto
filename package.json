@@ -1,0 +1,23 @@
+{
+  "name": "aws-ci",
+  "version": "1.0.1",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "build": "echo 'Build step executed'", 
+    "lint": "echo 'Linting step executed'", 
+    "test": "echo 'Test step executed'", 
+    "deploy": "pkill -f 'node index.js' || true && nohup node index.js > app.log 2>&1 &",
+    "stop": "pkill -f 'node index.js'",
+    "logs": "tail -f app.log"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.2",
+    "nodemon": "^3.1.9",
+    "pm2": "^5.4.3"
+  }
+}

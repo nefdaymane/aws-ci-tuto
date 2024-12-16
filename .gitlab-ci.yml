@@ -1,0 +1,104 @@
+# Utilisation de l'image Node.js officielle
+image: node:20.14.0
+
+# Commandes exécutées avant chaque job
+before_script:
+  - npm install
+
+stages:
+  - build
+  - test
+  - deploy
+
+# Étape de construction
+build:
+  stage: build
+  script:
+    - npm run build
+
+# Étape de linting
+lint:
+  stage: test
+  script:
+    - npm run lint
+
+# Étape de tests
+test:
+  stage: test
+  script:
+    - npm run test
+
+# Déploiement sur l'environnement de développement
+deploy-dev:
+  stage: deploy
+  script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - echo "✅ Setting up SSH agent..."
+    - eval $(ssh-agent -s)
+    - echo "$EC2_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - echo "✅ Configuring SSH access..."
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $EC2_HOST >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo "✅ Copying files to EC2 instance..."
+    - scp -r ./[!.]* $EC2_USERNAME@$EC2_HOST:/home/ubuntu/aws-ci
+    - echo "✅ Files copied successfully."
+    - echo "✅ Deploying application on EC2 instance..."
+    - ssh $EC2_USERNAME@$EC2_HOST <<EOF
+        set -e
+        echo "---------------------------------------"
+        echo "🚀 Starting Deployment on EC2 Instance (Development)"
+        echo "---------------------------------------"
+        echo "🔄 Navigating to project directory..."
+        cd /home/ubuntu/aws-ci
+        echo "📦 Installing dependencies..."
+        npm install --production=false
+        echo "🔧 Stopping existing Node.js process..."
+        pkill -f "node index.js" || true
+        echo "🔄 Starting application in development mode..."
+        nohup node index.js > dev.log 2>&1 &
+        echo "✅ Deployment complete! Application is running."
+        echo "---------------------------------------"
+      EOF
+  only:
+    - develop
+
+
+
+# Déploiement sur l'environnement de production
+deploy-prod:
+  stage: deploy
+  script:
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    - echo "✅ Setting up SSH agent..."
+    - eval $(ssh-agent -s)
+    - echo "$EC2_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - echo "✅ Configuring SSH access..."
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $EC2_HOST >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - echo "✅ Copying files to EC2 instance..."
+    - scp -r ./[!.]* $EC2_USERNAME@$EC2_HOST:/home/ubuntu/aws-ci
+    - echo "✅ Files copied successfully."
+    - echo "✅ Deploying application on EC2 instance..."
+    - ssh $EC2_USERNAME@$EC2_HOST <<EOF
+        set -e
+        echo "---------------------------------------"
+        echo "🚀 Starting Deployment on EC2 Instance (Production)"
+        echo "---------------------------------------"
+        echo "🔄 Navigating to project directory..."
+        cd /home/ubuntu/aws-ci
+        echo "📦 Installing dependencies..."
+        npm install
+        echo "🔧 Stopping existing Node.js process..."
+        pkill -f "node index.js" || true
+        echo "🔄 Starting application in production mode..."
+        nohup node index.js > prod.log 2>&1 &
+        echo "✅ Production deployment complete! Application is running."
+        echo "---------------------------------------"
+      EOF
+  only:
+    - master
+
